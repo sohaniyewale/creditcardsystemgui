@@ -3,8 +3,8 @@ A simple credit card banking system with a graphical user interface (GUI) using 
  Features
 
 - Create a new account with:
-  - Automatically generated card number (using the Luhn algorithm)
-  - 4-digit PIN
+ Automatically generates card number (using the Luhn algorithm)
+ 4-digit PIN
 - Log in with card number and PIN
 - View account balance
 - Add income to account
