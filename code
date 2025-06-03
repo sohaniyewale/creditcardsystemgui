@@ -1,0 +1,110 @@
+import tkinter as tk
+from tkinter import messagebox
+import sqlite3
+import random
+
+conn = sqlite3.connect('card_gui.db')
+cur = conn.cursor()
+cur.execute("""
+    CREATE TABLE IF NOT EXISTS card (
+        id INTEGER PRIMARY KEY,
+        number TEXT,
+        pin TEXT,
+        balance INTEGER DEFAULT 0
+    )
+""")
+conn.commit()
+
+def generate_card_number():
+    base = "400000" + str(random.randint(100000000, 999999999))
+    numbers = [int(d) for d in base]
+    for i in range(0, len(numbers), 2):
+        numbers[i] *= 2
+        if numbers[i] > 9:
+            numbers[i] -= 9
+    checksum = (10 - sum(numbers) % 10) % 10
+    return base + str(checksum)
+
+class BankingApp:
+    def __init__(self, master):
+        self.master = master
+        self.master.title("Credit Card System")
+
+        self.frame = tk.Frame(self.master)
+        self.frame.pack(padx=20, pady=20)
+
+        self.main_menu()
+
+    def clear_frame(self):
+        for widget in self.frame.winfo_children():
+            widget.destroy()
+
+    def main_menu(self):
+        self.clear_frame()
+        tk.Label(self.frame, text="Welcome to Credit Card System", font=("Arial", 14)).pack(pady=10)
+        tk.Button(self.frame, text="Create Account", command=self.create_account).pack(fill='x', pady=5)
+        tk.Button(self.frame, text="Log In", command=self.login_page).pack(fill='x', pady=5)
+        tk.Button(self.frame, text="Exit", command=self.master.quit).pack(fill='x', pady=5)
+
+    def create_account(self):
+        self.clear_frame()
+        card = generate_card_number()
+        pin = str(random.randint(1000, 9999))
+        cur.execute("INSERT INTO card (number, pin) VALUES (?, ?)", (card, pin))
+        conn.commit()
+
+        tk.Label(self.frame, text="Account Created!", font=("Arial", 12)).pack(pady=10)
+        tk.Label(self.frame, text=f"Card Number: {card}").pack()
+        tk.Label(self.frame, text=f"PIN: {pin}").pack(pady=10)
+        tk.Button(self.frame, text="Back to Menu", command=self.main_menu).pack(pady=10)
+
+    def login_page(self):
+        self.clear_frame()
+
+        tk.Label(self.frame, text="Login", font=("Arial", 12)).pack(pady=10)
+        tk.Label(self.frame, text="Card Number").pack()
+        self.card_entry = tk.Entry(self.frame)
+        self.card_entry.pack()
+        tk.Label(self.frame, text="PIN").pack()
+        self.pin_entry = tk.Entry(self.frame, show="*")
+        self.pin_entry.pack()
+
+        tk.Button(self.frame, text="Log In", command=self.check_login).pack(pady=10)
+        tk.Button(self.frame, text="Back", command=self.main_menu).pack()
+
+    def check_login(self):
+        card = self.card_entry.get()
+        pin = self.pin_entry.get()
+
+        cur.execute("SELECT * FROM card WHERE number=? AND pin=?", (card, pin))
+        user = cur.fetchone()
+
+        if user:
+            self.logged_in_user = user
+            self.account_menu()
+        else:
+            messagebox.showerror("Error", "Invalid card number or PIN")
+
+    def account_menu(self):
+        self.clear_frame()
+        tk.Label(self.frame, text=f"Welcome, {self.logged_in_user[1]}", font=("Arial", 12)).pack(pady=10)
+        tk.Button(self.frame, text="View Balance", command=self.view_balance).pack(fill='x', pady=5)
+        tk.Button(self.frame, text="Add Income", command=self.add_income).pack(fill='x', pady=5)
+        tk.Button(self.frame, text="Log Out", command=self.main_menu).pack(fill='x', pady=5)
+
+    def view_balance(self):
+        balance = self.logged_in_user[3]
+        messagebox.showinfo("Balance", f"Your balance is: ${balance}")
+
+    def add_income(self):
+        amount = tk.simpledialog.askinteger("Add Income", "Enter amount to add:")
+        if amount:
+            new_balance = self.logged_in_user[3] + amount
+            cur.execute("UPDATE card SET balance=? WHERE id=?", (new_balance, self.logged_in_user[0]))
+            conn.commit()
+            self.logged_in_user = (self.logged_in_user[0], self.logged_in_user[1], self.logged_in_user[2], new_balance)
+            messagebox.showinfo("Success", "Income added!")
+
+root = tk.Tk()
+app = BankingApp(root)
+root.mainloop()
